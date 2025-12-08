@@ -7,25 +7,49 @@ const session = require("express-session")
 
 const app = express()
 
+app.set("trust proxy", 1)
+
 app.use(cookieParser())
 app.use(express.json())
 app.use(cors({
     origin: "https://shiny-broccoli-7r4gg65p9gr2xxr6-5173.app.github.dev/",
     credentials: false,
-    methods: ["GET", "POST", "DELETE", "PUT"],
-    allowedHeaders: ["Content-Type"]
+    methods: ["GET", "POST", "DELETE", "PUT", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["set-cookie"]
 }))
 app.use(session({
     secret: "asdasdasdasdasdasd",
+    name: "sessionId",
     resave: false,
     saveUninitialized: false,
     cookie: {
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
-        sameSite: "lax",
-        secure: true
+        // sameSite: "strict", для codespace
+        sameSite: "none",
+        secure: true,
+        domain: undefined // для codespace
     }
 }))
+
+app.get("/auth/me", (req, res) => {
+    console.log(req.session)
+    if (req.session.userId) {
+        return res.json({ loggedIn: true })
+    }
+})
+
+app.post("/auth/signin", (req, res) => {
+    const createdUser = db
+        .prepare(`SELECT * FROM users WHERE id = ?`)
+        .get(newUser.lastInsertRowid);
+
+    req.session.userId = createdUser.id
+    req.session.email = createdUser.email
+
+    res.status(201).json(createdUser)
+})
 
 app.post("/signup", (req, res) => {
     try {
@@ -36,6 +60,12 @@ app.post("/signup", (req, res) => {
         const createdUser = db
             .prepare(`SELECT * FROM users WHERE id = ?`)
             .get(newUser.lastInsertRowid);
+
+
+        req.session.userId = createdUser.id
+        req.session.email = createdUser.email
+
+
         res.status(201).json(createdUser)
     } catch (error) {
         console.error(error)
