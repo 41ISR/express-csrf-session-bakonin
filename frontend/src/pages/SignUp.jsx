@@ -1,4 +1,7 @@
+import { useNavigate } from "react-router-dom"
+
 const SignUp = () => {
+    const navigate = useNavigate()
     const handleSubmit = async (e) => {
         e.preventDefault()
         
@@ -20,6 +23,7 @@ const SignUp = () => {
             if (!res.ok) throw new Error(res.statusText)
 
             console.log(res)
+            navigate("/")
         } catch (error) {
             console.error(error)
         }

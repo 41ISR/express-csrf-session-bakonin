@@ -26,6 +26,7 @@ app.use(session({
     cookie: {
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
+        name: "sessionId",
         // sameSite: "strict", для codespace
         sameSite: "none",
         secure: true,
@@ -36,22 +37,16 @@ app.use(session({
 app.get("/auth/me", (req, res) => {
     console.log(req.session)
     if (req.session.userId) {
-        return res.json({ loggedIn: true })
+        return res.status(200).json({ logged: true, user: {
+            userId: req.session.userId,
+            email: req.session.email
+        }})
     }
+    return res.status(401).json({logged: false})
 })
 
-app.post("/auth/signin", (req, res) => {
-    const createdUser = db
-        .prepare(`SELECT * FROM users WHERE id = ?`)
-        .get(newUser.lastInsertRowid);
 
-    req.session.userId = createdUser.id
-    req.session.email = createdUser.email
-
-    res.status(201).json(createdUser)
-})
-
-app.post("/signup", (req, res) => {
+app.post("/auth/signup", (req, res) => {
     try {
         const hashed = bcrypt.hashSync(req.body.password, 10)
         const newUser = db
@@ -69,9 +64,37 @@ app.post("/signup", (req, res) => {
         res.status(201).json(createdUser)
     } catch (error) {
         console.error(error)
-        res.json(error)
+        res.status(400).json(error)
     }
 })
+
+app.post("/auth/signin", (req, res) => {
+    const { email, password } = req.body
+    const user = db
+        .prepare(`SELECT * FROM users WHERE email = ?`)
+        .get(email)
+
+    if (!user)
+        res
+            .status(401)
+            .json({ error: "incorrect user" })
+
+    const validPassword = bcrypt.compareSync(password, user.password)
+
+    if (!validPassword) {
+        res
+            .status(401)
+            .json({ error: "incorrect password" })
+
+
+        req.session.userId = user.id
+        req.session.email = user.email
+
+        res.status(200).json(user)
+    }
+
+})
+
 
 app.listen("3000", () => {
     console.log("Порт3000")
